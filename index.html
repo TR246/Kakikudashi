@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>書き下し君 あるふぁ</title>
+        <meta name="theme-color" content="#212121">
+        <!--<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500">-->
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <header>
+            <h1>書き下し君<span class="beta">あるふぁ<span></span></h1>
+        </header>
+        <main v-cloak>
+            <div class="column-kakikudashi">
+                <div class="scroll">{{result}}</div>
+            </div>
+            <div class="column-kundoku">
+                <div v-for="(c, i) in kundoku" v-if="c" class="character" :key="c.id" @click="openDetail(i)">
+                    <div class="kanji">{{c.character}}</div>
+                    <div class="other">
+                        <div class="kaeriten"><img v-if="c.kaeriten" :src="`kaeriten/gray/${c.kaeriten}.svg`"></div>
+                        <div class="chusen" v-show="i < kundoku.length - 1 && kundoku[i + 1].chusen"></div>
+                        <div class="okurigana">{{c.okurigana || ""}}</div>
+                    </div>
+                </div>
+                <div class="addCharacter" @click="addCharacter(kundoku.length)" key="addCharacter"></div>
+            </div>
+            <transition>
+                <div class="panel-detailCharacter" v-if="kundoku.length" v-show="detailShow" @click.self="closeDetail">
+                    <transition>
+                        <div class="modal-body" v-show="detailShow">
+                            <div class="title" v-show="windowWidth < windowWidthBorder">
+                                <div class="close" @click="closeDetail"></div>
+                            </div>
+                            <div class="main">
+                                <div class="summary">
+                                    <div class="wrap-prev-btn">
+                                        <div class="btn" :class="{disabled: current <= 0}" @click="current--;animateDetailKanji = true"></div>
+                                        <div class="btn-add" @click="addCharacter(current)"></div>
+                                    </div>
+                                    <div class="wrap-next-btn">
+                                        <div class="btn" :class="{disabled: kundoku.length - 1 <= current}" @click="current++;animateDetailKanji = true"></div>
+                                        <div class="btn-add" @click="addCharacter(current + 1)"></div>
+                                    </div>
+                                    <div
+                                        v-for="(c, i) in kundoku"
+                                        :key=""
+                                        class="kanji"
+                                        :class="{
+                                            animate: animateDetailKanji,
+                                            before: i + 1 < current, 
+                                            prev: current === i + 1,
+                                            current: current === i,
+                                            next: current === i - 1,
+                                            after: current < i - 1
+                                        }"
+                                    >{{c.character}}</div>
+                                </div>
+                                <div class="info">
+                                    <ul>
+                                        <li>
+                                            <label>
+                                                <span>漢字</span>
+                                                <input class="input-size1" type="text" pattern="." v-model="currentCharacter.character">
+                                            </label>
+                                        </li>
+                                        <li>
+                                            <label>
+                                                <span>送り仮名</span>
+                                                <input type="text" pattern="[ァ-ヴ]*" v-model="currentCharacter.okurigana">
+                                            </label>
+                                        </li>
+                                        <li>
+                                            <div>返り点</div>
+                                            <div class="button-none" @click="currentCharacter.kaeriten = ''" :class="{checked: !currentCharacter.kaeriten}">なし</div>
+                                                <div class="wrap-table">
+                                                <table class="table-kaeriten">
+                                                    <tbody>
+                                                        <tr v-for="row in kaeritens" :key="row.join('_')">
+                                                            <td v-for="col in row" :key="col" @click="currentCharacter.kaeriten = col" :class="{checked: currentCharacter.kaeriten === col, disabled: (current < kundoku.length - 1 && kundoku[current + 1].chusen && (col.includes('re') || ['n1', 'jo', 'k1'].includes(col))) || (currentCharacter.chusen && col.includes('re'))}"><img :src="`kaeriten/black/${col}.svg`"></td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </li>
+                                        <li v-if="current < kundoku.length - 1">
+                                            <label>
+                                                <input type="checkbox" class="toggle" v-model="kundoku[current + 1].chusen">
+                                                <span>中線</span>
+                                            </label>
+                                        </li>
+                                        <li>
+                                            <label>
+                                                <span><span class="notice">助詞・助動詞のみ入力</span>読み方</span>
+                                                <input type="text" v-model="currentCharacter.readAs" pattern="[ぁ-ゖ]*">
+                                            </label>
+                                        </li>
+                                        <li>
+                                            <label>
+                                                <span><span class="notice">再読文字のみ入力</span>二度目の読み方</span>
+                                                <input type="text" v-model="currentCharacter.saidoku" pattern="[ぁ-ゖ]*">
+                                            </label>
+                                        </li>
+                                        <li>
+                                            <label>
+                                                <input type="checkbox" class="toggle" v-model="currentCharacter.skip">
+                                                <span>置き字</span>
+                                            </label>
+                                        </li>
+                                        <li>
+                                            <button class="danger" @click="deleteCharacter(current)">この字を削除</button>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </transition>
+                </div>
+            </transition>
+            <modal-confirm-window ref="deleteConfirm" label="削除してもよろしいですか"></modal-confirm-window>
+            <modal-input-window ref="addCharacter" label="追加する文字(複数入力可)"></modal-input-window>
+        </main>
+        <script src="https://unpkg.com/vue" defer></script>
+        <script src="script.js" defer></script>
+    </body>
+</html>
